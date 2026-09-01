@@ -1,0 +1,86 @@
+import asyncio
+import logging
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.core.config import settings, get_cors_origins
+from app.database import init_db
+from app.api.auth import router as auth_router
+from app.api.hives import router as hives_router
+from app.api.batches import router as batches_router
+from app.api.alerts import router as alerts_router
+from app.api.admin import router as admin_router
+from app.mqtt.handler import MQTTHandler
+from app.mqtt.service import on_mqtt_message
+from app.database import AsyncSessionLocal
+from app.services.seed import seed_database
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+mqtt_handler: MQTTHandler | None = None
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan: startup and shutdown events."""
+    # Startup
+    logger.info("Starting Honey Chain backend...")
+    await init_db()
+    logger.info("Database initialized")
+
+    # Seed demo data if needed
+    async with AsyncSessionLocal() as session:
+        await seed_database(session)
+        await session.commit()
+
+    # Start MQTT client (only if enabled)
+    global mqtt_handler
+    if settings.MQTT_ENABLED:
+        try:
+            mqtt_handler = MQTTHandler(on_message_callback=on_mqtt_message)
+            mqtt_handler.start()
+            logger.info("MQTT handler started")
+        except Exception as e:
+            logger.warning(f"MQTT failed to start: {e}")
+            logger.info("Running without MQTT — use POST /api/hives/{id}/telemetry to inject data")
+    else:
+        logger.info("MQTT disabled — use POST /api/hives/{id}/telemetry to inject data")
+
+    yield
+
+    # Shutdown
+    if mqtt_handler:
+        mqtt_handler.stop()
+        logger.info("MQTT handler stopped")
+
+
+app = FastAPI(
+    title="Honey Chain API",
+    description="Blockchain-based honey traceability and smart beekeeping API",
+    version="1.0.0",
+    lifespan=lifespan,
+)
+
+# CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=get_cors_origins(),
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Register routers
+app.include_router(auth_router)
+app.include_router(hives_router)
+app.include_router(batches_router)
+app.include_router(alerts_router)
+app.include_router(admin_router)
+
+
+@app.get("/api/health")
+async def health():
+    return {"status": "ok", "service": "Honey Chain API"}
