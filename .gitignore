@@ -47,3 +47,9 @@ backend/app/ai/model.joblib
 
 # QR Codes
 frontend/public/qr/
+
+honeychain.db
+
+*.db
+
+backend/venv/
