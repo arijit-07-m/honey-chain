@@ -16,7 +16,7 @@ from app.schemas.schemas import (
     VerifyResponse,
 )
 from app.services.auth import get_current_user
-from app.blockchain.service import create_event, verify_chain
+from app.blockchain.service import create_genesis_event, create_event, verify_chain
 import qrcode
 from io import BytesIO
 import base64
@@ -184,7 +184,13 @@ async def create_harvest(
         if harvest.location:
             event_data += f" | Location: {harvest.location}"
 
-        # 4. Record HARVEST event on the hash chain
+        # 4. Record GENESIS block first, then HARVEST block
+        await create_genesis_event(
+            db=db,
+            batch_id=batch.id,
+            actor_id=current_user.id,
+            event_data=f"Batch digital identity initialized for {batch.batch_code}",
+        )
         await create_event(
             db=db,
             batch_id=batch.id,

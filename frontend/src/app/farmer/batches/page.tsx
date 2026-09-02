@@ -338,12 +338,16 @@ export default function BatchesPage() {
                 <h3 className="font-semibold text-gray-900 mb-4">Blockchain Traceability Chain</h3>
                 <div className="space-y-4">
                   {['GENESIS', 'HARVEST', 'PROCESSING', 'PACKAGING', 'RETAIL'].map((stage, i) => {
-                    const event = selectedBatch.events.find(e => e.stage === stage);
+                    let event = selectedBatch.events.find(e => e.stage === stage);
+                    // If stage is GENESIS and not explicitly stored as a separate event, treat batch creation as genesis
+                    const isGenesisVirtual = stage === 'GENESIS' && !event && selectedBatch.events.length > 0;
+                    const isCompleted = !!event || isGenesisVirtual;
+
                     return (
                       <div key={stage} className="flex items-start gap-3">
                         <div className="flex flex-col items-center">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${event ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-400'}`}>
-                            {event ? '✓' : i + 1}
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${isCompleted ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-400'}`}>
+                            {isCompleted ? '✓' : i + 1}
                           </div>
                           {i < 4 && <div className="w-0.5 h-8 bg-gray-200"></div>}
                         </div>
@@ -354,6 +358,12 @@ export default function BatchesPage() {
                               <p className="text-sm text-gray-500">{new Date(event.timestamp).toLocaleString()}</p>
                               {event.event_data && <p className="text-xs text-gray-400">{event.event_data}</p>}
                               <p className="text-xs text-gray-400 font-mono mt-0.5">SHA-256: {event.current_hash.substring(0, 16)}...</p>
+                            </>
+                          ) : isGenesisVirtual ? (
+                            <>
+                              <p className="text-sm text-gray-500">{new Date(selectedBatch.created_at).toLocaleString()}</p>
+                              <p className="text-xs text-gray-400">Batch digital identity registered</p>
+                              <p className="text-xs text-gray-400 font-mono mt-0.5">Root Hash: GENESIS</p>
                             </>
                           ) : (
                             <p className="text-sm text-gray-400 italic">Pending</p>
