@@ -13,9 +13,9 @@ logger = logging.getLogger(__name__)
 
 async def on_mqtt_message(payload: dict):
     """Callback invoked when a telemetry message arrives via MQTT."""
-    hive_code = payload.get("hive_code")
+    hive_code = payload.get("hive_code") or payload.get("hive_id")
     if not hive_code:
-        logger.warning("MQTT message missing hive_code")
+        logger.warning("MQTT message missing hive_code/hive_id")
         return
 
     async with AsyncSessionLocal() as db:
@@ -35,6 +35,8 @@ async def on_mqtt_message(payload: dict):
 
         try:
             timestamp = datetime.fromisoformat(timestamp_str) if timestamp_str else datetime.utcnow()
+            if timestamp.tzinfo is not None:
+                timestamp = timestamp.replace(tzinfo=None)
         except (ValueError, TypeError):
             timestamp = datetime.utcnow()
 

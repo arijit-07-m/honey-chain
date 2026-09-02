@@ -75,7 +75,7 @@ def generate_reading(hive: dict, cycle: int) -> dict:
 def main():
     global running
     parser = argparse.ArgumentParser(description="Honey Chain Hive Simulator")
-    parser.add_argument("--broker", default="localhost", help="MQTT broker address")
+    parser.add_argument("--broker", default="broker.emqx.io", help="MQTT broker address")
     parser.add_argument("--port", type=int, default=1883, help="MQTT broker port")
     parser.add_argument("--interval", type=int, default=PUBLISH_INTERVAL, help="Publish interval in seconds")
     args = parser.parse_args()

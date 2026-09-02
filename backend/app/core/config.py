@@ -1,4 +1,4 @@
-﻿from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings
 from typing import List
 
 
@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     MQTT_USERNAME: str = ""
     MQTT_PASSWORD: str = ""
     MQTT_TOPIC_PREFIX: str = "hive"
-    MQTT_ENABLED: bool = False
+    MQTT_ENABLED: bool = True
 
     # Auth
     SECRET_KEY: str = "honey-chain-secret-key-change-in-production"
