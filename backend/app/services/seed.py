@@ -23,7 +23,7 @@ async def seed_database(db: AsyncSession):
     result = await db.execute(select(func.count(User.id)))
     if result.scalar() > 0:
         logger.info("Database already seeded, skipping")
-# ── Clusters ──────────────────────────────────────────────────────────
+        return
     cluster_data = [
         ("Kanpur", "Uttar Pradesh"),
         ("Lucknow", "Uttar Pradesh"),
