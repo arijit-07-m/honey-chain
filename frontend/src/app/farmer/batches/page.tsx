@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { getBatches, getBatch, addEvent, verifyChain, getBatchQR, Batch, BatchDetail, VerifyResult } from '@/lib/api';
-import { CheckCircle, XCircle, Printer, Share2, CheckSquare, Square, Layers, Sparkles, ExternalLink, ChevronDown, ChevronUp, Store } from 'lucide-react';
+import { CheckCircle, XCircle, Printer, Share2, CheckSquare, Square, Layers, Sparkles, ExternalLink, ChevronDown, ChevronUp, Store, Lock } from 'lucide-react';
 
 export default function BatchesPage() {
   const { token } = useAuth();
@@ -235,102 +235,131 @@ export default function BatchesPage() {
               </div>
             </div>
 
-            {/* Smart Sticker Sheet Generator - Shrinkable / Collapsible */}
-            <div className="card border border-honey-200 bg-white print:border-none print:shadow-none print:p-0 transition-all">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 print:hidden">
-                <button
-                  type="button"
-                  onClick={() => setShowLabelSheet(prev => !prev)}
-                  className="flex items-center gap-2.5 text-left flex-1 hover:opacity-80 transition-opacity cursor-pointer group"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-honey-100 flex items-center justify-center text-honey-600 flex-shrink-0 group-hover:bg-honey-200">
-                    <Printer className="w-4 h-4" />
+            {/* Smart Sticker Sheet Generator — ONLY available before going Out for Sale */}
+            {selectedBatch.status === 'RETAIL' ? (
+              <div className="card border border-emerald-200 bg-emerald-50/50 p-4 rounded-xl print:hidden">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-700 flex-shrink-0">
+                      <Lock className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-bold text-gray-900">Jar Labels Locked & Archived</h3>
+                        <span className="text-[10px] font-bold uppercase tracking-wide bg-emerald-200 text-emerald-800 px-2 py-0.5 rounded-full">
+                          Out for Sale
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-600 mt-0.5">
+                        This batch has already been dispatched to retail markets. Jar label generation is locked to preserve cryptographic packaging integrity.
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
-                      Printable Jar Sticker Sheet
-                      <span className="text-xs font-normal text-honey-700 bg-honey-50 border border-honey-200 px-2 py-0.5 rounded-full">
-                        {stickerCount} {stickerCount === 1 ? 'label' : 'labels'} ({jarSize >= 1000 ? `${jarSize / 1000}kg` : `${jarSize}g`})
-                      </span>
-                    </h3>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {showLabelSheet ? 'Tap to collapse preview' : 'Tap to expand & preview labels for glass/PET jars'}
-                    </p>
-                  </div>
-                  <div className="ml-auto text-gray-400 group-hover:text-gray-600 pr-2">
-                    {showLabelSheet ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                  </div>
-                </button>
-
-                {/* Controls (Jar Size & Print Button) */}
-                <div className="flex items-center gap-2 self-end sm:self-center">
-                  <span className="text-xs text-gray-500 font-medium">Jar:</span>
-                  <select
-                    value={jarSize}
-                    onChange={(e) => setJarSize(Number(e.target.value))}
-                    className="text-xs border border-gray-300 rounded-lg px-2 py-1.5 bg-white font-medium text-gray-700"
-                  >
-                    <option value={250}>
-                      250g ({Math.floor(totalGrams / 250)} jars)
-                    </option>
-                    <option value={500}>
-                      500g ({Math.floor(totalGrams / 500)} jars)
-                    </option>
-                    <option value={1000}>
-                      1 kg ({Math.floor(totalGrams / 1000)} jars{remainderGrams > 0 && jarSize === 1000 ? ` • +${remainderGrams}g` : ''})
-                    </option>
-                  </select>
                   <button
-                    onClick={() => {
-                      if (!showLabelSheet) setShowLabelSheet(true);
-                      setTimeout(handlePrintLabels, 150);
-                    }}
-                    className="btn-primary text-xs py-1.5 px-3 flex items-center gap-1.5 shadow-xs whitespace-nowrap"
+                    onClick={() => router.push(`/verify/${selectedBatch.batch_code}`)}
+                    className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5 text-emerald-800 border-emerald-300 hover:bg-emerald-100/60 whitespace-nowrap self-end sm:self-center"
                   >
-                    <Printer className="w-3.5 h-3.5" /> Print Sheet
+                    <ExternalLink className="w-3.5 h-3.5" /> View Consumer QR
                   </button>
                 </div>
               </div>
-
-              {/* Printable Grid of Labels - Collapsible on screen, always visible when printing */}
-              <div className={`${showLabelSheet ? 'block mt-4 pt-4 border-t border-gray-100' : 'hidden'} print:block print:mt-0 print:pt-0`}>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 gap-3 print:grid-cols-3 print:gap-4 print:w-full">
-                  {Array.from({ length: stickerCount }).map((_, idx) => (
-                    <div
-                      key={idx}
-                      className="border border-dashed border-gray-300 rounded-lg p-3 bg-white flex flex-col justify-between items-center text-center shadow-xs print:border-solid print:border-gray-800 print:rounded-none print:break-inside-avoid"
-                    >
-                      {/* Honey Type & Net Weight */}
-                      <div className="w-full border-b border-gray-100 pb-1 mb-1 text-center">
-                        <p className="text-xs font-bold text-gray-900 uppercase tracking-wide">
-                          {selectedBatch.honey_type || 'Natural Honey'}
-                        </p>
-                        <p className="text-[10px] font-semibold text-gray-700">
-                          Net Wt: {jarSize >= 1000 ? `${jarSize / 1000} kg` : `${jarSize} g`}
-                        </p>
-                      </div>
-
-                      {/* QR Code */}
-                      {qrCode ? (
-                        <img src={qrCode} alt="Verification QR" className="w-20 h-20 my-1 object-contain" />
-                      ) : (
-                        <div className="w-20 h-20 bg-gray-100 flex items-center justify-center text-[10px] text-gray-400">Loading QR</div>
-                      )}
-
-                      {/* Batch Code & Direct Website Address */}
-                      <div className="w-full pt-1 border-t border-gray-100 mt-1 text-center">
-                        <p className="text-[10px] font-mono font-bold text-gray-900">
-                          Batch: {selectedBatch.batch_code}
-                        </p>
-                        <p className="text-[8px] font-mono text-gray-500 break-all leading-tight mt-0.5">
-                          Verify: {typeof window !== 'undefined' ? window.location.host : 'honey-chain-ten.vercel.app'}/verify/{selectedBatch.batch_code}
-                        </p>
-                      </div>
+            ) : (
+              <div className="card border border-honey-200 bg-white print:border-none print:shadow-none print:p-0 transition-all">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 print:hidden">
+                  <button
+                    type="button"
+                    onClick={() => setShowLabelSheet(prev => !prev)}
+                    className="flex items-center gap-2.5 text-left flex-1 hover:opacity-80 transition-opacity cursor-pointer group"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-honey-100 flex items-center justify-center text-honey-600 flex-shrink-0 group-hover:bg-honey-200">
+                      <Printer className="w-4 h-4" />
                     </div>
-                  ))}
+                    <div>
+                      <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
+                        Printable Jar Sticker Sheet
+                        <span className="text-xs font-normal text-honey-700 bg-honey-50 border border-honey-200 px-2 py-0.5 rounded-full">
+                          {stickerCount} {stickerCount === 1 ? 'label' : 'labels'} ({jarSize >= 1000 ? `${jarSize / 1000}kg` : `${jarSize}g`})
+                        </span>
+                      </h3>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {showLabelSheet ? 'Tap to collapse preview' : 'Tap to expand & preview labels for glass/PET jars'}
+                      </p>
+                    </div>
+                    <div className="ml-auto text-gray-400 group-hover:text-gray-600 pr-2">
+                      {showLabelSheet ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                    </div>
+                  </button>
+
+                  {/* Controls (Jar Size & Print Button) */}
+                  <div className="flex items-center gap-2 self-end sm:self-center">
+                    <span className="text-xs text-gray-500 font-medium">Jar:</span>
+                    <select
+                      value={jarSize}
+                      onChange={(e) => setJarSize(Number(e.target.value))}
+                      className="text-xs border border-gray-300 rounded-lg px-2 py-1.5 bg-white font-medium text-gray-700"
+                    >
+                      <option value={250}>
+                        250g ({Math.floor(totalGrams / 250)} jars)
+                      </option>
+                      <option value={500}>
+                        500g ({Math.floor(totalGrams / 500)} jars)
+                      </option>
+                      <option value={1000}>
+                        1 kg ({Math.floor(totalGrams / 1000)} jars{remainderGrams > 0 && jarSize === 1000 ? ` • +${remainderGrams}g` : ''})
+                      </option>
+                    </select>
+                    <button
+                      onClick={() => {
+                        if (!showLabelSheet) setShowLabelSheet(true);
+                        setTimeout(handlePrintLabels, 150);
+                      }}
+                      className="btn-primary text-xs py-1.5 px-3 flex items-center gap-1.5 shadow-xs whitespace-nowrap"
+                    >
+                      <Printer className="w-3.5 h-3.5" /> Print Sheet
+                    </button>
+                  </div>
+                </div>
+
+                {/* Printable Grid of Labels - Collapsible on screen, always visible when printing */}
+                <div className={`${showLabelSheet ? 'block mt-4 pt-4 border-t border-gray-100' : 'hidden'} print:block print:mt-0 print:pt-0`}>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 gap-3 print:grid-cols-3 print:gap-4 print:w-full">
+                    {Array.from({ length: stickerCount }).map((_, idx) => (
+                      <div
+                        key={idx}
+                        className="border border-dashed border-gray-300 rounded-lg p-3 bg-white flex flex-col justify-between items-center text-center shadow-xs print:border-solid print:border-gray-800 print:rounded-none print:break-inside-avoid"
+                      >
+                        {/* Honey Type & Net Weight */}
+                        <div className="w-full border-b border-gray-100 pb-1 mb-1 text-center">
+                          <p className="text-xs font-bold text-gray-900 uppercase tracking-wide">
+                            {selectedBatch.honey_type || 'Natural Honey'}
+                          </p>
+                          <p className="text-[10px] font-semibold text-gray-700">
+                            Net Wt: {jarSize >= 1000 ? `${jarSize / 1000} kg` : `${jarSize} g`}
+                          </p>
+                        </div>
+
+                        {/* QR Code */}
+                        {qrCode ? (
+                          <img src={qrCode} alt="Verification QR" className="w-20 h-20 my-1 object-contain" />
+                        ) : (
+                          <div className="w-20 h-20 bg-gray-100 flex items-center justify-center text-[10px] text-gray-400">Loading QR</div>
+                        )}
+
+                        {/* Batch Code & Direct Website Address */}
+                        <div className="w-full pt-1 border-t border-gray-100 mt-1 text-center">
+                          <p className="text-[10px] font-mono font-bold text-gray-900">
+                            Batch: {selectedBatch.batch_code}
+                          </p>
+                          <p className="text-[8px] font-mono text-gray-500 break-all leading-tight mt-0.5">
+                            Verify: {typeof window !== 'undefined' ? window.location.host : 'honey-chain-ten.vercel.app'}/verify/{selectedBatch.batch_code}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* 2-Column Section: Traceability Timeline on Left, Stage Progression & Audit on Right */}
             <div className="grid grid-cols-1 md:grid-cols-12 gap-6 print:hidden items-start">
