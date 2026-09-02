@@ -312,63 +312,72 @@ export default function BatchesPage() {
               </div>
             </div>
 
-            {/* Traceability Timeline - hidden in print */}
-            <div className="card print:hidden">
-              <h3 className="font-semibold text-gray-900 mb-4">Blockchain Traceability Chain</h3>
-              <div className="space-y-4">
-                {['GENESIS', 'HARVEST', 'PROCESSING', 'PACKAGING', 'RETAIL'].map((stage, i) => {
-                  const event = selectedBatch.events.find(e => e.stage === stage);
-                  return (
-                    <div key={stage} className="flex items-start gap-3">
-                      <div className="flex flex-col items-center">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${event ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-400'}`}>
-                          {event ? '✓' : i + 1}
+            {/* 2-Column Section: Traceability Timeline on Left, Stage Progression & Audit on Right */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-6 print:hidden items-start">
+              {/* Left Column: Traceability Timeline */}
+              <div className="md:col-span-7 card">
+                <h3 className="font-semibold text-gray-900 mb-4">Blockchain Traceability Chain</h3>
+                <div className="space-y-4">
+                  {['GENESIS', 'HARVEST', 'PROCESSING', 'PACKAGING', 'RETAIL'].map((stage, i) => {
+                    const event = selectedBatch.events.find(e => e.stage === stage);
+                    return (
+                      <div key={stage} className="flex items-start gap-3">
+                        <div className="flex flex-col items-center">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${event ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-400'}`}>
+                            {event ? '✓' : i + 1}
+                          </div>
+                          {i < 4 && <div className="w-0.5 h-8 bg-gray-200"></div>}
                         </div>
-                        {i < 4 && <div className="w-0.5 h-8 bg-gray-200"></div>}
+                        <div className="flex-1">
+                          <p className="font-medium text-gray-900">{getStageTitle(stage)}</p>
+                          {event ? (
+                            <>
+                              <p className="text-sm text-gray-500">{new Date(event.timestamp).toLocaleString()}</p>
+                              {event.event_data && <p className="text-xs text-gray-400">{event.event_data}</p>}
+                              <p className="text-xs text-gray-400 font-mono mt-0.5">SHA-256: {event.current_hash.substring(0, 16)}...</p>
+                            </>
+                          ) : (
+                            <p className="text-sm text-gray-400 italic">Pending</p>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex-1">
-                        <p className="font-medium text-gray-900">{getStageTitle(stage)}</p>
-                        {event ? (
-                          <>
-                            <p className="text-sm text-gray-500">{new Date(event.timestamp).toLocaleString()}</p>
-                            {event.event_data && <p className="text-xs text-gray-400">{event.event_data}</p>}
-                            <p className="text-xs text-gray-400 font-mono mt-0.5">SHA-256: {event.current_hash.substring(0, 16)}...</p>
-                          </>
-                        ) : (
-                          <p className="text-sm text-gray-400 italic">Pending</p>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Actions Card - hidden in print */}
-            <div className="card space-y-3 print:hidden">
-              <h3 className="font-semibold text-gray-900">Stage Progression & Audit</h3>
-              {nextStage(selectedBatch.status) && (
-                <button
-                  onClick={() => handleAddEvent(nextStage(selectedBatch.status)!)}
-                  className="btn-primary w-full py-2.5 flex items-center justify-center gap-2"
-                  disabled={addingEvent}
-                >
-                  <Sparkles className="w-4 h-4" />
-                  {addingEvent ? 'Appending Block…' : `Advance to ${nextStage(selectedBatch.status)}`}
-                </button>
-              )}
-              <button onClick={handleVerify} className="btn-secondary w-full py-2">
-                Run Cryptographic Integrity Check
-              </button>
-              {verifyResult && (
-                <div className={`p-3 rounded-lg ${verifyResult.valid ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                  <div className="flex items-center gap-2 font-medium">
-                    {verifyResult.valid ? <CheckCircle className="w-5 h-5 text-green-600" /> : <XCircle className="w-5 h-5 text-red-600" />}
-                    {verifyResult.valid ? '✓ Cryptographic Ledger Valid' : '✗ Hash Discrepancy Detected'}
-                  </div>
-                  <p className="text-sm mt-1">{verifyResult.message}</p>
+                    );
+                  })}
                 </div>
-              )}
+              </div>
+
+              {/* Right Column: Stage Progression & Audit Actions */}
+              <div className="md:col-span-5 card space-y-4 sticky top-24">
+                <div>
+                  <h3 className="font-semibold text-gray-900">Stage Progression & Audit</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">Mint subsequent blocks or run cryptographic integrity verification.</p>
+                </div>
+
+                {nextStage(selectedBatch.status) && (
+                  <button
+                    onClick={() => handleAddEvent(nextStage(selectedBatch.status)!)}
+                    className="btn-primary w-full py-2.5 flex items-center justify-center gap-2 shadow-xs"
+                    disabled={addingEvent}
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    {addingEvent ? 'Appending Block…' : `Advance to ${nextStage(selectedBatch.status)}`}
+                  </button>
+                )}
+
+                <button onClick={handleVerify} className="btn-secondary w-full py-2">
+                  Run Cryptographic Integrity Check
+                </button>
+
+                {verifyResult && (
+                  <div className={`p-3 rounded-lg ${verifyResult.valid ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                    <div className="flex items-center gap-2 font-medium">
+                      {verifyResult.valid ? <CheckCircle className="w-5 h-5 text-green-600" /> : <XCircle className="w-5 h-5 text-red-600" />}
+                      {verifyResult.valid ? '✓ Cryptographic Ledger Valid' : '✗ Hash Discrepancy Detected'}
+                    </div>
+                    <p className="text-sm mt-1">{verifyResult.message}</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         ) : (
