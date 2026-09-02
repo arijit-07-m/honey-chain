@@ -9,7 +9,7 @@ from app.core.config import settings, get_cors_origins
 from app.database import init_db, engine
 from app.api.auth import router as auth_router
 from app.api.hives import router as hives_router
-from app.api.batches import router as batches_router
+from app.api.batches import router as batches_router, init_batch_counter
 from app.api.alerts import router as alerts_router
 from app.api.admin import router as admin_router
 from app.mqtt.handler import MQTTHandler
@@ -32,6 +32,7 @@ async def lifespan(app: FastAPI):
     async with AsyncSessionLocal() as session:
         await seed_database(session)
         await session.commit()
+        await init_batch_counter(session)
 
     global mqtt_handler
     if settings.MQTT_ENABLED:
