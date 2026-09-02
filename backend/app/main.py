@@ -4,7 +4,6 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import text
 
 from app.core.config import settings, get_cors_origins
 from app.database import init_db, engine
@@ -22,24 +21,10 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 mqtt_handler: MQTTHandler | None = None
-keep_alive_task = None
-
-
-async def keep_alive():
-    """Ping the database every 5 minutes to prevent Render spindown."""
-    while True:
-        try:
-            async with engine.connect() as conn:
-                await conn.execute(text("SELECT 1"))
-            logger.debug("Keep-alive ping successful")
-        except Exception as e:
-            logger.warning(f"Keep-alive ping failed: {e}")
-        await asyncio.sleep(300)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global keep_alive_task
     logger.info("Starting Honey Chain backend...")
     await init_db()
     logger.info("Database initialized")
@@ -47,9 +32,6 @@ async def lifespan(app: FastAPI):
     async with AsyncSessionLocal() as session:
         await seed_database(session)
         await session.commit()
-
-    keep_alive_task = asyncio.create_task(keep_alive())
-    logger.info("Keep-alive task started")
 
     global mqtt_handler
     if settings.MQTT_ENABLED:
@@ -64,8 +46,6 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    if keep_alive_task:
-        keep_alive_task.cancel()
     if mqtt_handler:
         mqtt_handler.stop()
     logger.info("Shutdown complete")
