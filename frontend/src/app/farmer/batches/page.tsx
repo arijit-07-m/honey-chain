@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { getBatches, getBatch, addEvent, verifyChain, getBatchQR, Batch, BatchDetail, VerifyResult } from '@/lib/api';
-import { CheckCircle, XCircle, Printer, Share2, CheckSquare, Square, Layers, Sparkles, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react';
+import { CheckCircle, XCircle, Printer, Share2, CheckSquare, Square, Layers, Sparkles, ExternalLink, ChevronDown, ChevronUp, Store } from 'lucide-react';
 
 export default function BatchesPage() {
   const { token } = useAuth();
@@ -23,6 +23,7 @@ export default function BatchesPage() {
   // Label printing settings
   const [jarSize, setJarSize] = useState<number>(500); // grams
   const [showLabelSheet, setShowLabelSheet] = useState(false);
+  const [showRetailBatches, setShowRetailBatches] = useState(false); // Collapsible retail market section
 
   useEffect(() => {
     if (!token) return;
@@ -410,46 +411,145 @@ export default function BatchesPage() {
             </div>
           </div>
         ) : (
-          /* Batch List with Bulk Selection */
-          <div className="space-y-3">
-            {batches.map(batch => {
-              const isSelected = selectedBatchIds.includes(batch.id);
-              return (
-                <div
-                  key={batch.id}
-                  onClick={() => loadBatch(batch.id)}
-                  className={`card flex items-center justify-between cursor-pointer hover:shadow-md transition-all ${
-                    isSelected ? 'ring-2 ring-honey-500 bg-honey-50/20' : ''
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={(e) => toggleSelectBatch(batch.id, e)}
-                      className="text-gray-400 hover:text-honey-600 p-1"
-                    >
-                      {isSelected ? (
-                        <CheckSquare className="w-5 h-5 text-honey-600" />
-                      ) : (
-                        <Square className="w-5 h-5" />
-                      )}
-                    </button>
-                    <div>
-                      <p className="font-bold text-gray-900">{batch.batch_code}</p>
-                      <p className="text-sm text-gray-500">{batch.honey_type} · {batch.quantity} kg</p>
+          /* Batch List with Organized Pipeline and Shrinkable Retail Section */
+          <div className="space-y-6">
+            {/* 1. Active Production Pipeline */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between px-1">
+                <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">
+                  Active Production Pipeline ({batches.filter(b => b.status !== 'RETAIL').length})
+                </h2>
+                <span className="text-xs text-gray-400">Harvest • Processing • Packaging</span>
+              </div>
+
+              {batches.filter(b => b.status !== 'RETAIL').map(batch => {
+                const isSelected = selectedBatchIds.includes(batch.id);
+                return (
+                  <div
+                    key={batch.id}
+                    onClick={() => loadBatch(batch.id)}
+                    className={`card flex items-center justify-between cursor-pointer hover:shadow-md transition-all ${
+                      isSelected ? 'ring-2 ring-honey-500 bg-honey-50/20' : ''
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={(e) => toggleSelectBatch(batch.id, e)}
+                        className="text-gray-400 hover:text-honey-600 p-1"
+                      >
+                        {isSelected ? (
+                          <CheckSquare className="w-5 h-5 text-honey-600" />
+                        ) : (
+                          <Square className="w-5 h-5" />
+                        )}
+                      </button>
+                      <div>
+                        <p className="font-bold text-gray-900">{batch.batch_code}</p>
+                        <p className="text-sm text-gray-500">{batch.honey_type} · {batch.quantity} kg</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                        batch.status === 'PACKAGING' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
+                      }`}>
+                        {batch.status}
+                      </span>
+                      <span className="text-gray-400 text-sm">&rarr;</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                      batch.status === 'PACKAGING' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
-                    }`}>
-                      {batch.status}
-                    </span>
-                    <span className="text-gray-400 text-sm">&rarr;</span>
-                  </div>
+                );
+              })}
+
+              {batches.filter(b => b.status !== 'RETAIL').length === 0 && batches.length > 0 && (
+                <div className="card text-center py-6 text-gray-500 bg-gray-50/60">
+                  <p className="text-sm">All current batches have advanced to Retail Market!</p>
                 </div>
-              );
-            })}
+              )}
+            </div>
+
+            {/* 2. Shrinkable Section: Out for Sale / Retail Market */}
+            {batches.filter(b => b.status === 'RETAIL').length > 0 && (
+              <div className="card border border-emerald-200 bg-emerald-50/40 p-4 rounded-xl shadow-xs transition-all">
+                <button
+                  type="button"
+                  onClick={() => setShowRetailBatches(!showRetailBatches)}
+                  className="w-full flex items-center justify-between text-left focus:outline-none cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-700 flex-shrink-0">
+                      <Store className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-bold text-gray-900">Out for Sale (Retail Market)</h3>
+                        <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-emerald-200 text-emerald-800">
+                          {batches.filter(b => b.status === 'RETAIL').length}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        Batches currently on retail shelves with live consumer QR verification
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-emerald-700 hidden sm:inline">
+                      {showRetailBatches ? 'Tap to shrink' : 'Tap to expand'}
+                    </span>
+                    <div className="p-1 rounded-md bg-white border border-emerald-200 text-emerald-700">
+                      {showRetailBatches ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    </div>
+                  </div>
+                </button>
+
+                {/* Collapsible Retail Batches Content */}
+                {showRetailBatches && (
+                  <div className="mt-4 pt-3 border-t border-emerald-100 space-y-2.5">
+                    {batches.filter(b => b.status === 'RETAIL').map(batch => {
+                      const isSelected = selectedBatchIds.includes(batch.id);
+                      return (
+                        <div
+                          key={batch.id}
+                          onClick={() => loadBatch(batch.id)}
+                          className={`bg-white border border-emerald-200 rounded-lg p-3 flex items-center justify-between cursor-pointer hover:shadow-sm transition-all ${
+                            isSelected ? 'ring-2 ring-emerald-500 bg-emerald-50/30' : ''
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <button
+                              type="button"
+                              onClick={(e) => toggleSelectBatch(batch.id, e)}
+                              className="text-gray-400 hover:text-emerald-600 p-1"
+                            >
+                              {isSelected ? (
+                                <CheckSquare className="w-5 h-5 text-emerald-600" />
+                              ) : (
+                                <Square className="w-5 h-5" />
+                              )}
+                            </button>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <p className="font-bold text-gray-900 text-sm">{batch.batch_code}</p>
+                                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 flex items-center gap-1">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                  On Sale
+                                </span>
+                              </div>
+                              <p className="text-xs text-gray-500 mt-0.5">{batch.honey_type} · {batch.quantity} kg</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-emerald-600 font-medium hidden sm:inline">View Blockchain Record &rarr;</span>
+                            <span className="text-gray-400 text-sm sm:hidden">&rarr;</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
             {batches.length === 0 && (
               <div className="card text-center py-12 text-gray-500">
                 <p>No batches found. Harvest honey from a hive to create your first batch!</p>
