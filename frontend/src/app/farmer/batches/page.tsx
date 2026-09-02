@@ -272,26 +272,31 @@ export default function BatchesPage() {
                     key={idx}
                     className="border border-dashed border-gray-300 rounded-lg p-3 bg-white flex flex-col justify-between items-center text-center shadow-xs print:border-solid print:border-gray-800 print:rounded-none print:break-inside-avoid"
                   >
-                    <div className="w-full border-b border-gray-100 pb-1 mb-1">
-                      <div className="flex items-center justify-center gap-1">
-                        <span className="text-xs">🍯</span>
-                        <span className="text-[11px] font-bold text-gray-800 uppercase tracking-wider">Honey Chain</span>
-                      </div>
-                      <p className="text-[9px] text-gray-500 font-medium">{selectedBatch.honey_type || 'Pure Honey'}</p>
+                    {/* Honey Type & Net Weight */}
+                    <div className="w-full border-b border-gray-100 pb-1 mb-1 text-center">
+                      <p className="text-xs font-bold text-gray-900 uppercase tracking-wide">
+                        {selectedBatch.honey_type || 'Natural Honey'}
+                      </p>
+                      <p className="text-[10px] font-semibold text-gray-700">
+                        Net Wt: {jarSize >= 1000 ? `${jarSize / 1000} kg` : `${jarSize} g`}
+                      </p>
                     </div>
 
+                    {/* QR Code */}
                     {qrCode ? (
-                      <img src={qrCode} alt="QR" className="w-16 h-16 my-1 object-contain" />
+                      <img src={qrCode} alt="Verification QR" className="w-20 h-20 my-1 object-contain" />
                     ) : (
-                      <div className="w-16 h-16 bg-gray-100 flex items-center justify-center text-[9px] text-gray-400">Loading QR</div>
+                      <div className="w-20 h-20 bg-gray-100 flex items-center justify-center text-[10px] text-gray-400">Loading QR</div>
                     )}
 
-                    <div className="w-full pt-1 border-t border-gray-100 mt-1">
-                      <p className="text-[9px] font-mono font-bold text-gray-900">{selectedBatch.batch_code}</p>
-                      <div className="flex justify-between items-center text-[8px] text-gray-500 mt-0.5">
-                        <span>Net: {jarSize >= 1000 ? `${jarSize/1000}kg` : `${jarSize}g`}</span>
-                        <span className="text-green-600 font-bold">KVIC ✓</span>
-                      </div>
+                    {/* Batch Code & Direct Website Address */}
+                    <div className="w-full pt-1 border-t border-gray-100 mt-1 text-center">
+                      <p className="text-[10px] font-mono font-bold text-gray-900">
+                        Batch: {selectedBatch.batch_code}
+                      </p>
+                      <p className="text-[8px] font-mono text-gray-500 break-all leading-tight mt-0.5">
+                        Verify: {typeof window !== 'undefined' ? window.location.host : 'honey-chain-ten.vercel.app'}/verify/{selectedBatch.batch_code}
+                      </p>
                     </div>
                   </div>
                 ))}
