@@ -151,8 +151,8 @@ export default function BatchesPage() {
     );
   }
 
-  // Calculate number of jar stickers for sheet
-  const stickerCount = selectedBatch ? Math.max(1, Math.min(60, Math.ceil((selectedBatch.quantity * 1000) / jarSize))) : 0;
+  // Calculate number of jar stickers for sheet based on batch quantity
+  const stickerCount = selectedBatch ? Math.max(1, Math.ceil((selectedBatch.quantity * 1000) / jarSize)) : 0;
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20 print:bg-white print:pb-0">
@@ -267,7 +267,7 @@ export default function BatchesPage() {
 
               {/* Printable Grid of Labels */}
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 gap-3 print:grid-cols-3 print:gap-4 print:w-full">
-                {Array.from({ length: Math.min(stickerCount, 12) }).map((_, idx) => (
+                {Array.from({ length: stickerCount }).map((_, idx) => (
                   <div
                     key={idx}
                     className="border border-dashed border-gray-300 rounded-lg p-3 bg-white flex flex-col justify-between items-center text-center shadow-xs print:border-solid print:border-gray-800 print:rounded-none print:break-inside-avoid"
@@ -301,12 +301,6 @@ export default function BatchesPage() {
                   </div>
                 ))}
               </div>
-
-              {stickerCount > 12 && (
-                <p className="text-[11px] text-gray-400 text-center mt-3 print:hidden">
-                  Showing 12 of {stickerCount} labels for preview. Tapping "Print Sheet" prints full batch.
-                </p>
-              )}
             </div>
 
             {/* Traceability Timeline - hidden in print */}
