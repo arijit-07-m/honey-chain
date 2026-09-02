@@ -136,43 +136,88 @@ async def create_harvest(
     current_user: User = Depends(get_current_user),
 ):
     """Create a new harvest batch with hash-chain event."""
-    result = await db.execute(select(Hive).where(Hive.id == harvest.hive_id))
-    hive = result.scalar_one_or_none()
-    if not hive:
-        raise HTTPException(status_code=404, detail="Hive not found")
-    batch_code = _generate_batch_code()
-    batch = Batch(
-        batch_code=batch_code, hive_id=harvest.hive_id,
-        farmer_id=current_user.id, honey_type=harvest.honey_type,
-        quantity=harvest.quantity, harvest_date=harvest.harvest_date,
-        status="HARVEST",
-    )
-    db.add(batch)
-    await db.flush()  # get batch.id assigned by the DB
+    try:
+        result = await db.execute(select(Hive).where(Hive.id == harvest.hive_id))
+        hive = result.scalar_one_or_none()
+        if not hive:
+            raise HTTPException(status_code=404, detail="Hive not found")
 
-    # Build event description
-    event_data = f"Harvested {harvest.quantity}kg of {harvest.honey_type}"
-    if harvest.notes:
-        event_data += f" | Notes: {harvest.notes}"
-    if harvest.location:
-        event_data += f" | Location: {harvest.location}"
+        # 1. Strip timezone for PostgreSQL asyncpg TIMESTAMP WITHOUT TIME ZONE compatibility
+        harvest_date = harvest.harvest_date
+        if harvest_date is not None and harvest_date.tzinfo is not None:
+            harvest_date = harvest_date.replace(tzinfo=None)
+        elif harvest_date is None:
+            harvest_date = datetime.utcnow()
 
-    # Record HARVEST event on the hash chain
-    await create_event(
-        db=db, batch_id=batch.id, stage="HARVEST",
-        actor_id=current_user.id, event_data=event_data,
-    )
+        # 2. Determine next batch code directly from the DB to guarantee zero collision
+        year = datetime.utcnow().year
+        prefix = f"HC-{year}-"
+        result_codes = await db.execute(select(Batch.batch_code))
+        existing_codes = [row[0] for row in result_codes.all()]
+        max_num = 0
+        for c in existing_codes:
+            if c and c.startswith(prefix):
+                try:
+                    num = int(c.split("-")[-1])
+                    if num > max_num:
+                        max_num = num
+                except (ValueError, IndexError):
+                    pass
+        batch_code = f"HC-{year}-{(max_num + 1):05d}"
 
-    # Pre-generate QR code PNG on disk
-    _generate_qr(batch_code)
+        batch = Batch(
+            batch_code=batch_code,
+            hive_id=harvest.hive_id,
+            farmer_id=current_user.id,
+            honey_type=harvest.honey_type,
+            quantity=harvest.quantity,
+            harvest_date=harvest_date,
+            status="HARVEST",
+        )
+        db.add(batch)
+        await db.flush()  # get batch.id assigned by the DB
 
-    return BatchResponse(
-        id=batch.id, batch_code=batch.batch_code,
-        hive_id=batch.hive_id, farmer_id=batch.farmer_id,
-        honey_type=batch.honey_type, quantity=batch.quantity,
-        harvest_date=batch.harvest_date, status=batch.status,
-        created_at=batch.created_at,
-    )
+        # 3. Build event description
+        event_data = f"Harvested {harvest.quantity}kg of {harvest.honey_type}"
+        if harvest.notes:
+            event_data += f" | Notes: {harvest.notes}"
+        if harvest.location:
+            event_data += f" | Location: {harvest.location}"
+
+        # 4. Record HARVEST event on the hash chain
+        await create_event(
+            db=db,
+            batch_id=batch.id,
+            stage="HARVEST",
+            actor_id=current_user.id,
+            event_data=event_data,
+        )
+
+        # 5. Pre-generate QR code PNG on disk (safe fail)
+        try:
+            _generate_qr(batch_code)
+        except Exception as qr_err:
+            import logging
+            logging.getLogger(__name__).warning(f"QR disk write failed (non-fatal): {qr_err}")
+
+        return BatchResponse(
+            id=batch.id,
+            batch_code=batch.batch_code,
+            hive_id=batch.hive_id,
+            farmer_id=batch.farmer_id,
+            honey_type=batch.honey_type,
+            quantity=batch.quantity,
+            harvest_date=batch.harvest_date,
+            status=batch.status,
+            created_at=batch.created_at,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        import logging
+        logging.getLogger(__name__).error(f"create_harvest error: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Harvest creation failed: {str(e)}")
 
 
 @router.post("/{batch_id}/events", response_model=TraceabilityEventResponse)
