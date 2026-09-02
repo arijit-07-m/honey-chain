@@ -75,4 +75,5 @@ app.include_router(admin_router)
 
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "service": "Honey Chain API"}
+    return {"status": "ok", "service": "Honey Chain API", "cors_origins": get_cors_origins()}
+

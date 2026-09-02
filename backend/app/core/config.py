@@ -42,5 +42,22 @@ settings = Settings()
 
 
 def get_cors_origins() -> List[str]:
-    """Parse comma-separated CORS origins into a list."""
-    return [o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()]
+    """Parse comma-separated CORS origins into a list.
+
+    Production Vercel frontend origins are ALWAYS included, even if the
+    CORS_ORIGINS environment variable contains stale values that would
+    otherwise break the deployed frontend's authentication.
+    """
+    origins = [o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()]
+
+    # Production frontend origins - always allow regardless of env var
+    # This prevents deployed production logins from breaking when the
+    # Render dashboard CORS_ORIGINS value is stale or incomplete.
+    for stable_origin in (
+        "https://honey-chain.vercel.app",
+        "https://honey-chain-ten.vercel.app",
+    ):
+        if stable_origin not in origins:
+            origins.append(stable_origin)
+
+    return origins
