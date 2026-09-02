@@ -20,8 +20,9 @@ class MQTTHandler:
         self.password = settings.MQTT_PASSWORD
         self.topic = f"{settings.MQTT_TOPIC_PREFIX}/+/telemetry"
         self.callback = on_message_callback
-        self.loop = loop  # main async loop (so DB pool stays on one loop)
-        self.client = mqtt.Client(client_id="honeychain-backend", protocol=mqtt.MQTTv311)
+        import uuid
+        client_id = f"honeychain-backend-{uuid.uuid4().hex[:6]}"
+        self.client = mqtt.Client(client_id=client_id, protocol=mqtt.MQTTv311)
         self._connected = False
 
         if self.username:

@@ -9,8 +9,8 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite+aiosqlite:///./honeychain.db"
     DATABASE_SYNC_URL: str = "sqlite:///./honeychain.db"
 
-    # MQTT (optional — skip if broker is unavailable)
-    MQTT_BROKER_URL: str = "localhost"
+    # MQTT (public broker: broker.emqx.io)
+    MQTT_BROKER_URL: str = "broker.emqx.io"
     MQTT_BROKER_PORT: int = 1883
     MQTT_USERNAME: str = ""
     MQTT_PASSWORD: str = ""
