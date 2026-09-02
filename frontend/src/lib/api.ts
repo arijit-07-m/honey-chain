@@ -214,6 +214,26 @@ export async function getAlerts(token: string, hiveId?: number): Promise<Alert[]
   return apiFetch<Alert[]>(`/api/alerts${params}`, { token });
 }
 
+export async function resolveAlert(token: string, alertId: number): Promise<Alert> {
+  return apiFetch<Alert>(`/api/alerts/${alertId}/resolve`, {
+    method: 'PATCH', token,
+  });
+}
+
+export interface SensorInput {
+  temperature: number;
+  humidity: number;
+  weight: number;
+  sound_level: number;
+}
+
+export async function injectTelemetry(token: string, hiveId: number, data: SensorInput): Promise<SensorReading> {
+  return apiFetch<SensorReading>(`/api/hives/${hiveId}/telemetry`, {
+    method: 'POST', token,
+    body: JSON.stringify({ hive_id: hiveId, ...data }),
+  });
+}
+
 // ── Admin ─────────────────────────────────────────────────────────────────
 
 export interface AdminDashboard {

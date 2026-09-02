@@ -1,5 +1,9 @@
 # Honey Chain — Render Deployment Configuration
-# https://render.com/docs/deploy-blank
+# https://render.com/docs/blueprint-spec
+#
+# ⚠ IMPORTANT: The envVars below are DEFAULTS / templates only.
+# Actual secret values must be set in the Render dashboard → Environment.
+# Dashboard values always override this file.
 
 services:
   - type: web
@@ -11,16 +15,22 @@ services:
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: DATABASE_URL
+        # Set this in Render dashboard to your PostgreSQL Internal URL:
+        # postgresql+asyncpg://<user>:<pass>@<host>/<db>
         value: postgresql+asyncpg://honeychain:honeychain@localhost:5432/honeychain
-        # ⚠ Replace with your Render PostgreSQL connection string
-      - key: DATABASE_SYNC_URL
-        value: postgresql://honeychain:honeychain@localhost:5432/honeychain
-        # ⚠ Replace with your Render PostgreSQL connection string (sync)
       - key: SECRET_KEY
         generateValue: true
       - key: CORS_ORIGINS
-        value: https://honey-chain.vercel.app,http://localhost:3000
+        # Both Vercel deployment URLs + local dev
+        value: https://honey-chain-ten.vercel.app,https://honey-chain.vercel.app,http://localhost:3000
       - key: MQTT_ENABLED
-        value: "False"
+        value: "True"
+      - key: MQTT_BROKER_URL
+        value: broker.emqx.io
+      - key: MQTT_BROKER_PORT
+        value: "1883"
+      - key: NEXT_PUBLIC_APP_URL
+        # Used for QR code links — set to your Vercel frontend URL
+        value: https://honey-chain-ten.vercel.app
       - key: DEMO_MODE
         value: "true"
