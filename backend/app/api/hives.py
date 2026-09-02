@@ -44,11 +44,11 @@ async def get_hive(
     if not hive:
         raise HTTPException(status_code=404, detail="Hive not found")
 
-    # Get latest sensor reading
+    # Get latest sensor reading (ordered by auto-increment ID to always get latest inserted)
     result = await db.execute(
         select(SensorReading)
         .where(SensorReading.hive_id == hive_id)
-        .order_by(desc(SensorReading.timestamp))
+        .order_by(desc(SensorReading.id))
         .limit(1)
     )
     latest = result.scalar_one_or_none()
