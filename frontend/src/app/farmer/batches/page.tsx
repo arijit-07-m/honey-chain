@@ -151,8 +151,11 @@ export default function BatchesPage() {
     );
   }
 
-  // Calculate number of jar stickers for sheet based on batch quantity
-  const stickerCount = selectedBatch ? Math.max(1, Math.ceil((selectedBatch.quantity * 1000) / jarSize)) : 0;
+  // Calculate number of full jar stickers for sheet based on batch quantity
+  const totalGrams = selectedBatch ? Math.round(selectedBatch.quantity * 1000) : 0;
+  const fullJars = totalGrams > 0 ? Math.floor(totalGrams / jarSize) : 0;
+  const remainderGrams = totalGrams > 0 ? totalGrams % jarSize : 0;
+  const stickerCount = Math.max(1, fullJars);
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20 print:bg-white print:pb-0">
@@ -252,9 +255,15 @@ export default function BatchesPage() {
                     onChange={(e) => setJarSize(Number(e.target.value))}
                     className="text-xs border border-gray-300 rounded-lg px-2 py-1.5 bg-white font-medium text-gray-700"
                   >
-                    <option value={250}>250g Jars ({Math.ceil((selectedBatch.quantity * 1000) / 250)} labels)</option>
-                    <option value={500}>500g Jars ({Math.ceil((selectedBatch.quantity * 1000) / 500)} labels)</option>
-                    <option value={1000}>1 kg Jars ({Math.ceil((selectedBatch.quantity * 1000) / 1000)} labels)</option>
+                    <option value={250}>
+                      250g Jars ({Math.floor(totalGrams / 250)} jars)
+                    </option>
+                    <option value={500}>
+                      500g Jars ({Math.floor(totalGrams / 500)} jars)
+                    </option>
+                    <option value={1000}>
+                      1 kg Jars ({Math.floor(totalGrams / 1000)} jars{remainderGrams > 0 && jarSize === 1000 ? ` • +${remainderGrams}g rem.` : ''})
+                    </option>
                   </select>
                   <button
                     onClick={handlePrintLabels}
