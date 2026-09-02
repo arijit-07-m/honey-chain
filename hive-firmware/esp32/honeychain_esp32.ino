@@ -16,18 +16,26 @@
 
 // ── ✏️  CONFIGURE THESE ──────────────────────────────────────────
 
-// WiFi credentials (connect ESP32 to same network as backend)
-const char* WIFI_SSID = "YOUR_WIFI_SSID";          // ← Change this
-const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";   // ← Change this
+// WiFi credentials (2.4GHz WiFi — ESP32 does not support 5GHz)
+const char* WIFI_SSID = "YOUR_WIFI_SSID";          // ← Change to your WiFi
+const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";   // ← Change to your WiFi password
 
-// MQTT Broker (use your computer's local IP if running Mosquitto locally)
-const char* MQTT_BROKER = "192.168.1.100";          // ← Change to your PC's IP
+// MQTT Broker
+// ─────────────────────────────────────────────────────────────
+// OPTION A (RECOMMENDED for demo): free public broker — works from
+// anywhere with internet. Your backend on Render also connects here.
+const char* MQTT_BROKER = "broker.emqx.io";
 const int MQTT_PORT = 1883;
 const char* MQTT_USER = "";
 const char* MQTT_PASS = "";
+//
+// OPTION B (local only): run Mosquitto on a PC on the same WiFi,
+// set the broker to that PC's IP and set the backend's
+// MQTT_BROKER_URL to the same IP.
+// const char* MQTT_BROKER = "192.168.1.100";
 
-// Hive ID — must match a hive in the database (H001-H030 exist in seed data)
-const char* HIVE_ID = "H001";
+// Hive ID — must match a hive code in the database (H001-H030 exist)
+const char* HIVE_ID = "H001";                       // ← Pick the hive you want
 const char* TOPIC_TEMPLATE = "hive/%s/telemetry";
 
 // ── Pin Configuration ────────────────────────────────────────────
@@ -35,7 +43,7 @@ const char* TOPIC_TEMPLATE = "hive/%s/telemetry";
 #define DHT_TYPE DHT22        // Use DHT11 if you have DHT11 sensor
 
 // ── Timing ────────────────────────────────────────────────────────
-const long PUBLISH_INTERVAL = 10000;  // 10 seconds
+const long PUBLISH_INTERVAL = 5000;  // publish every 5 seconds
 
 // ═══════════════════════════════════════════════════════════════════
 //  DO NOT CHANGE BELOW THIS LINE

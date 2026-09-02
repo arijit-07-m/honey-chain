@@ -13,13 +13,14 @@ logger = logging.getLogger(__name__)
 class MQTTHandler:
     """Handles MQTT subscription and message processing."""
 
-    def __init__(self, on_message_callback: Callable):
+    def __init__(self, on_message_callback: Callable, loop=None):
         self.broker = settings.MQTT_BROKER_URL
         self.port = settings.MQTT_BROKER_PORT
         self.username = settings.MQTT_USERNAME
         self.password = settings.MQTT_PASSWORD
         self.topic = f"{settings.MQTT_TOPIC_PREFIX}/+/telemetry"
         self.callback = on_message_callback
+        self.loop = loop  # main async loop (so DB pool stays on one loop)
         self.client = mqtt.Client(client_id="honeychain-backend", protocol=mqtt.MQTTv311)
         self._connected = False
 
@@ -46,7 +47,12 @@ class MQTTHandler:
             topic_parts = msg.topic.split("/")
             if len(topic_parts) >= 2:
                 payload["hive_code"] = topic_parts[1]
-            asyncio.run(self.callback(payload))
+            if self.loop is not None:
+                # Run on the main uvicorn event loop so the async
+                # DB engine is used from the loop it was created on.
+                asyncio.run_coroutine_threadsafe(self.callback(payload), self.loop)
+            else:
+                asyncio.run(self.callback(payload))
         except Exception as e:
             logger.error(f"Error processing MQTT message: {e}")
 

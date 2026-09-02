@@ -36,9 +36,11 @@ async def lifespan(app: FastAPI):
     global mqtt_handler
     if settings.MQTT_ENABLED:
         try:
-            mqtt_handler = MQTTHandler(on_message_callback=on_mqtt_message)
+            # Pass the main event loop so DB operations run on it
+            main_loop = asyncio.get_running_loop()
+            mqtt_handler = MQTTHandler(on_message_callback=on_mqtt_message, loop=main_loop)
             mqtt_handler.start()
-            logger.info("MQTT handler started")
+            logger.info(f"MQTT handler started (broker={settings.MQTT_BROKER_URL}:{settings.MQTT_BROKER_PORT})")
         except Exception as e:
             logger.warning(f"MQTT failed to start: {e}")
     else:
@@ -76,4 +78,5 @@ app.include_router(admin_router)
 @app.get("/api/health")
 async def health():
     return {"status": "ok", "service": "Honey Chain API", "cors_origins": get_cors_origins()}
+
 

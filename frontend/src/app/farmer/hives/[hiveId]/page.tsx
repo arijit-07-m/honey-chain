@@ -21,10 +21,18 @@ export default function HiveDetailPage({ params }: { params: Promise<{ hiveId: s
   useEffect(() => {
     if (!token) return;
     const id = parseInt(hiveId);
-    Promise.all([
-      getHive(token, id), getHiveTelemetry(token, id, 100), getAlerts(token, id),
-    ]).then(([h, t, a]) => { setHive(h); setTelemetry(t); setAlerts(a); setLoading(false); })
-      .catch(() => setLoading(false));
+
+    const load = () => {
+      Promise.all([
+        getHive(token, id), getHiveTelemetry(token, id, 100), getAlerts(token, id),
+      ]).then(([h, t, a]) => { setHive(h); setTelemetry(t); setAlerts(a); setLoading(false); })
+        .catch(() => setLoading(false));
+    };
+
+    load();
+    // Live refresh: poll every 5 seconds so new sensor readings appear in real-time
+    const interval = setInterval(load, 5000);
+    return () => clearInterval(interval);
   }, [token, hiveId]);
 
   if (loading) return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-honey-500"></div></div>;
@@ -43,7 +51,13 @@ export default function HiveDetailPage({ params }: { params: Promise<{ hiveId: s
         <div className="max-w-4xl mx-auto px-4 py-4">
           <button onClick={() => router.push('/farmer/hives')} className="text-gray-500 mb-2 block">&larr; Back</button>
           <h1 className="text-2xl font-bold text-gray-900">Hive {hive.hive_code}</h1>
-          <p className="text-sm text-gray-500">Last updated: {hive.last_updated ? new Date(hive.last_updated).toLocaleString() : 'N/A'}</p>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700">
+              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+              LIVE
+            </span>
+            <p className="text-sm text-gray-500">Last updated: {hive.last_updated ? new Date(hive.last_updated).toLocaleTimeString() : 'N/A'}</p>
+          </div>
         </div>
       </header>
 <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
