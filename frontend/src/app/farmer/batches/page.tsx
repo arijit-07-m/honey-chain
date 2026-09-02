@@ -125,7 +125,23 @@ export default function BatchesPage() {
     }
   };
 
-  const nextStage = (s: string) => s === 'HARVEST' ? 'PROCESSING' : s === 'PROCESSING' ? 'PACKAGING' : null;
+  const nextStage = (s: string) => {
+    if (s === 'HARVEST') return 'PROCESSING';
+    if (s === 'PROCESSING') return 'PACKAGING';
+    if (s === 'PACKAGING') return 'RETAIL';
+    return null;
+  };
+
+  const getStageTitle = (stage: string) => {
+    switch (stage) {
+      case 'GENESIS': return 'Batch Initialized';
+      case 'HARVEST': return 'Harvested at Apiary';
+      case 'PROCESSING': return 'Quality Tested & Processed';
+      case 'PACKAGING': return 'Bottled & Sealed';
+      case 'RETAIL': return 'Out for Sale (Retail Market)';
+      default: return stage;
+    }
+  };
 
   if (loading) {
     return (
@@ -292,7 +308,7 @@ export default function BatchesPage() {
             <div className="card print:hidden">
               <h3 className="font-semibold text-gray-900 mb-4">Blockchain Traceability Chain</h3>
               <div className="space-y-4">
-                {['GENESIS', 'HARVEST', 'PROCESSING', 'PACKAGING'].map((stage, i) => {
+                {['GENESIS', 'HARVEST', 'PROCESSING', 'PACKAGING', 'RETAIL'].map((stage, i) => {
                   const event = selectedBatch.events.find(e => e.stage === stage);
                   return (
                     <div key={stage} className="flex items-start gap-3">
@@ -300,10 +316,10 @@ export default function BatchesPage() {
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${event ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-400'}`}>
                           {event ? '✓' : i + 1}
                         </div>
-                        {i < 3 && <div className="w-0.5 h-8 bg-gray-200"></div>}
+                        {i < 4 && <div className="w-0.5 h-8 bg-gray-200"></div>}
                       </div>
                       <div className="flex-1">
-                        <p className="font-medium text-gray-900">{stage === 'GENESIS' ? 'Batch Minted' : stage}</p>
+                        <p className="font-medium text-gray-900">{getStageTitle(stage)}</p>
                         {event ? (
                           <>
                             <p className="text-sm text-gray-500">{new Date(event.timestamp).toLocaleString()}</p>
