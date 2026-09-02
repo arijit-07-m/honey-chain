@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { getHive, getHiveTelemetry, getAlerts, injectTelemetry, HiveDetail, SensorReading, Alert } from '@/lib/api';
 import dynamic from 'next/dynamic';
-import { Thermometer, Droplets, Weight, Ear, AlertTriangle, Zap, Globe } from 'lucide-react';
+import { Thermometer, Droplets, Weight, Ear, AlertTriangle, Zap, Globe, Radio, Play, Pause } from 'lucide-react';
 
 const SensorChart = dynamic(() => import('@/components/SensorChart'), { ssr: false });
 
@@ -36,6 +36,7 @@ export default function HiveDetailPage({ params }: { params: Promise<{ hiveId: s
   const [injecting, setInjecting] = useState(false);
   const [injectMsg, setInjectMsg] = useState('');
   const [selectedTimezone, setSelectedTimezone] = useState<string>('Asia/Kolkata');
+  const [isSimulating, setIsSimulating] = useState(false); // In-browser virtual sensor stream
 
   // Load saved timezone or default to India (IST)
   useEffect(() => {
@@ -49,6 +50,30 @@ export default function HiveDetailPage({ params }: { params: Promise<{ hiveId: s
     setSelectedTimezone(tz);
     localStorage.setItem('honeychain_tz', tz);
   };
+
+  // Browser-based Virtual Sensor Stream: Generates live telemetry even when ESP32 or terminal sim is offline
+  useEffect(() => {
+    if (!isSimulating || !token) return;
+    const id = parseInt(hiveId);
+
+    const streamInterval = setInterval(async () => {
+      const temp = Number((32.2 + (Math.random() * 1.6 - 0.8)).toFixed(1));
+      const hum = Number((64.5 + (Math.random() * 3.4 - 1.7)).toFixed(1));
+      const wt = Number((24.9 + (Math.random() * 0.6 - 0.3)).toFixed(1));
+      const snd = Number((56.0 + (Math.random() * 5.0 - 2.5)).toFixed(0));
+
+      try {
+        await injectTelemetry(token, id, {
+          temperature: temp,
+          humidity: hum,
+          weight: wt,
+          sound_level: snd,
+        });
+      } catch {}
+    }, 4000);
+
+    return () => clearInterval(streamInterval);
+  }, [isSimulating, token, hiveId]);
 
   useEffect(() => {
     if (!token) return;
@@ -125,34 +150,106 @@ export default function HiveDetailPage({ params }: { params: Promise<{ hiveId: s
   // Timezone display label (e.g. "IST" or "Asia/Kolkata")
   const currentTzLabel = TIMEZONE_OPTIONS.find(t => t.value === selectedTimezone)?.label.split('(')[1]?.replace(')', '') || selectedTimezone;
 
+  // Connection Heartbeat: dynamically detects whether physical hardware, simulator, or browser stream is active
+  const getDeviceHealth = () => {
+    if (isSimulating) {
+      return {
+        label: 'VIRTUAL STREAM',
+        badge: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+        dot: 'bg-emerald-500 animate-pulse',
+        desc: 'Browser-driven virtual sensors publishing every 4s',
+        isLive: true,
+      };
+    }
+    if (!hive?.last_updated) {
+      return {
+        label: 'NO DATA',
+        badge: 'bg-gray-100 text-gray-600 border-gray-300',
+        dot: 'bg-gray-400',
+        desc: 'No sensor data recorded yet for this node',
+        isLive: false,
+      };
+    }
+    const utcStr = hive.last_updated.endsWith('Z') || hive.last_updated.includes('+') ? hive.last_updated : `${hive.last_updated}Z`;
+    const secondsAgo = Math.max(0, Math.round((Date.now() - new Date(utcStr).getTime()) / 1000));
+
+    if (secondsAgo <= 65) {
+      return {
+        label: 'LIVE SENSORS',
+        badge: 'bg-green-100 text-green-700 border-green-300',
+        dot: 'bg-green-500 animate-pulse',
+        desc: `Active heartbeat received ${secondsAgo}s ago via MQTT / API`,
+        isLive: true,
+      };
+    } else if (secondsAgo <= 900) {
+      const mins = Math.max(1, Math.round(secondsAgo / 60));
+      return {
+        label: `STANDBY • SLEEP (${mins}m ago)`,
+        badge: 'bg-amber-100 text-amber-800 border-amber-300',
+        dot: 'bg-amber-500',
+        desc: 'ESP32 in low-power conservation cycle; awaiting next interval',
+        isLive: false,
+      };
+    } else {
+      return {
+        label: 'NODE OFFLINE',
+        badge: 'bg-gray-100 text-gray-700 border-gray-300',
+        dot: 'bg-gray-400',
+        desc: 'Hardware inactive. Turn on Virtual Stream or check battery.',
+        isLive: false,
+      };
+    }
+  };
+
+  const health = getDeviceHealth();
+
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       <header className="bg-white border-b border-gray-100 sticky top-0 z-30">
         <div className="max-w-4xl mx-auto px-4 py-4">
           <button onClick={() => router.push('/farmer/hives')} className="text-gray-500 mb-2 block">&larr; Back</button>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Hive {hive.hive_code}</h1>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700">
-                  <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                  LIVE
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border ${health.badge}`} title={health.desc}>
+                  <span className={`w-2 h-2 rounded-full ${health.dot}`}></span>
+                  {health.label}
                 </span>
                 <p className="text-sm text-gray-500">
                   Last updated: <span className="font-semibold text-gray-800">{formatWithTz(hive.last_updated)}</span> <span className="text-xs font-medium text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded ml-1">{currentTzLabel}</span>
                 </p>
               </div>
             </div>
-            {/* Anomaly Injection — demo tool for judges */}
-            <button
-              onClick={handleInjectAnomaly}
-              disabled={injecting}
-              className="flex items-center gap-1.5 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white text-xs font-bold px-3 py-2 rounded-lg transition-colors"
-              title="Inject anomalous sensor values to trigger AI detection"
-            >
-              <Zap className="w-3.5 h-3.5" />
-              {injecting ? 'Injecting…' : 'Inject Anomaly'}
-            </button>
+
+            {/* Action Buttons: Virtual Stream Toggle & Anomaly Injector */}
+            <div className="flex items-center gap-2 self-start sm:self-center flex-wrap">
+              {/* Virtual IoT Sensor Stream Switch */}
+              <button
+                type="button"
+                onClick={() => setIsSimulating(!isSimulating)}
+                className={`flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-lg transition-all border ${
+                  isSimulating
+                    ? 'bg-emerald-600 text-white border-emerald-700 shadow-sm animate-pulse'
+                    : 'bg-white hover:bg-emerald-50 text-emerald-800 border-emerald-300'
+                }`}
+                title="Simulate live ESP32 telemetry streaming directly in your browser without hardware"
+              >
+                <Radio className="w-3.5 h-3.5" />
+                {isSimulating ? 'Virtual Stream: ON' : 'Virtual Stream: OFF'}
+              </button>
+
+              {/* Anomaly Injection — demo tool for judges */}
+              <button
+                onClick={handleInjectAnomaly}
+                disabled={injecting}
+                className="flex items-center gap-1.5 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white text-xs font-bold px-3 py-2 rounded-lg transition-colors shadow-xs"
+                title="Inject anomalous sensor values to trigger AI detection"
+              >
+                <Zap className="w-3.5 h-3.5" />
+                {injecting ? 'Injecting…' : 'Inject Anomaly'}
+              </button>
+            </div>
           </div>
           {injectMsg && (
             <p className="text-xs mt-2 text-orange-600 font-medium">{injectMsg}</p>
@@ -173,6 +270,30 @@ export default function HiveDetailPage({ params }: { params: Promise<{ hiveId: s
             </div>
           </div>
         ))}
+
+        {/* Offline / Standby Resilience Banner */}
+        {!health.isLive && !isSimulating && (
+          <div className="card bg-blue-50/70 border border-blue-200 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-700 flex-shrink-0">
+                <Radio className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-gray-900">Offline Resilience Active</h4>
+                <p className="text-xs text-gray-600 mt-0.5">
+                  Physical ESP32 node is in conservation sleep or offline. Historical readings and blockchain records remain 100% accessible.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsSimulating(true)}
+              className="btn-primary text-xs py-1.5 px-3 whitespace-nowrap self-end sm:self-center shadow-xs flex items-center gap-1"
+            >
+              <Radio className="w-3.5 h-3.5" /> Start Virtual Stream ⚡
+            </button>
+          </div>
+        )}
 
         {/* Sensor value cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
