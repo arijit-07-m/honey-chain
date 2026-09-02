@@ -66,8 +66,15 @@ export default function HiveDetailPage({ params }: { params: Promise<{ hiveId: s
   );
   if (!hive) return <div className="p-8 text-center text-gray-500">Hive not found</div>;
 
+  // Format UTC timestamps to local device time zone (e.g. IST)
+  const parseUtcDate = (ts: string | null) => {
+    if (!ts) return null;
+    const utcStr = ts.endsWith('Z') || ts.includes('+') ? ts : `${ts}Z`;
+    return new Date(utcStr);
+  };
+
   const chartData = telemetry.map(r => ({
-    time: new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    time: parseUtcDate(r.timestamp)?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) || '',
     temperature: r.temperature,
     humidity: r.humidity,
     weight: r.weight,
@@ -90,7 +97,7 @@ export default function HiveDetailPage({ params }: { params: Promise<{ hiveId: s
                   LIVE
                 </span>
                 <p className="text-sm text-gray-500">
-                  Last updated: {hive.last_updated ? new Date(hive.last_updated).toLocaleTimeString() : 'N/A'}
+                  Last updated: {parseUtcDate(hive.last_updated)?.toLocaleTimeString() ?? 'N/A'}
                 </p>
               </div>
             </div>
