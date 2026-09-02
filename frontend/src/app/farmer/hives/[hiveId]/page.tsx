@@ -5,9 +5,25 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { getHive, getHiveTelemetry, getAlerts, injectTelemetry, HiveDetail, SensorReading, Alert } from '@/lib/api';
 import dynamic from 'next/dynamic';
-import { Thermometer, Droplets, Weight, Ear, AlertTriangle, Zap } from 'lucide-react';
+import { Thermometer, Droplets, Weight, Ear, AlertTriangle, Zap, Globe } from 'lucide-react';
 
 const SensorChart = dynamic(() => import('@/components/SensorChart'), { ssr: false });
+
+const TIMEZONE_OPTIONS = [
+  { label: '🇮🇳 India (IST • UTC+05:30)', value: 'Asia/Kolkata' },
+  { label: '🌐 Coordinated Universal Time (UTC)', value: 'UTC' },
+  { label: '🇺🇸 USA - Eastern Time (EST / EDT)', value: 'America/New_York' },
+  { label: '🇺🇸 USA - Central Time (CST / CDT)', value: 'America/Chicago' },
+  { label: '🇺🇸 USA - Mountain Time (MST / MDT)', value: 'America/Denver' },
+  { label: '🇺🇸 USA - Pacific Time (PST / PDT)', value: 'America/Los_Angeles' },
+  { label: '🇬🇧 United Kingdom (GMT / BST)', value: 'Europe/London' },
+  { label: '🇪🇺 Central Europe (CET / CEST)', value: 'Europe/Paris' },
+  { label: '🇦🇪 UAE / Gulf (GST • UTC+04:00)', value: 'Asia/Dubai' },
+  { label: '🇸🇬 Singapore / Malaysia (SGT • UTC+08:00)', value: 'Asia/Singapore' },
+  { label: '🇯🇵 Japan (JST • UTC+09:00)', value: 'Asia/Tokyo' },
+  { label: '🇦🇺 Australia - Sydney (AEST / AEDT)', value: 'Australia/Sydney' },
+  { label: '🇨🇦 Canada - Toronto (EST / EDT)', value: 'America/Toronto' },
+];
 
 export default function HiveDetailPage({ params }: { params: Promise<{ hiveId: string }> }) {
   const { hiveId } = use(params);
@@ -19,6 +35,20 @@ export default function HiveDetailPage({ params }: { params: Promise<{ hiveId: s
   const [loading, setLoading] = useState(true);
   const [injecting, setInjecting] = useState(false);
   const [injectMsg, setInjectMsg] = useState('');
+  const [selectedTimezone, setSelectedTimezone] = useState<string>('Asia/Kolkata');
+
+  // Load saved timezone or default to India (IST)
+  useEffect(() => {
+    const savedTz = localStorage.getItem('honeychain_tz');
+    if (savedTz) {
+      setSelectedTimezone(savedTz);
+    }
+  }, []);
+
+  const handleTimezoneChange = (tz: string) => {
+    setSelectedTimezone(tz);
+    localStorage.setItem('honeychain_tz', tz);
+  };
 
   useEffect(() => {
     if (!token) return;
@@ -66,15 +96,24 @@ export default function HiveDetailPage({ params }: { params: Promise<{ hiveId: s
   );
   if (!hive) return <div className="p-8 text-center text-gray-500">Hive not found</div>;
 
-  // Format UTC timestamps to local device time zone (e.g. IST)
-  const parseUtcDate = (ts: string | null) => {
-    if (!ts) return null;
+  // Format UTC timestamps according to user-selected country / time zone
+  const formatWithTz = (ts: string | null, includeSeconds = true) => {
+    if (!ts) return 'N/A';
     const utcStr = ts.endsWith('Z') || ts.includes('+') ? ts : `${ts}Z`;
-    return new Date(utcStr);
+    try {
+      return new Date(utcStr).toLocaleTimeString([], {
+        timeZone: selectedTimezone,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: includeSeconds ? '2-digit' : undefined,
+      });
+    } catch {
+      return new Date(utcStr).toLocaleTimeString();
+    }
   };
 
   const chartData = telemetry.map(r => ({
-    time: parseUtcDate(r.timestamp)?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) || '',
+    time: formatWithTz(r.timestamp, false),
     temperature: r.temperature,
     humidity: r.humidity,
     weight: r.weight,
@@ -82,6 +121,9 @@ export default function HiveDetailPage({ params }: { params: Promise<{ hiveId: s
   }));
 
   const activeAlerts = alerts.filter(a => !a.resolved);
+
+  // Timezone display label (e.g. "IST" or "Asia/Kolkata")
+  const currentTzLabel = TIMEZONE_OPTIONS.find(t => t.value === selectedTimezone)?.label.split('(')[1]?.replace(')', '') || selectedTimezone;
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
@@ -97,7 +139,7 @@ export default function HiveDetailPage({ params }: { params: Promise<{ hiveId: s
                   LIVE
                 </span>
                 <p className="text-sm text-gray-500">
-                  Last updated: {parseUtcDate(hive.last_updated)?.toLocaleTimeString() ?? 'N/A'}
+                  Last updated: <span className="font-semibold text-gray-800">{formatWithTz(hive.last_updated)}</span> <span className="text-xs font-medium text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded ml-1">{currentTzLabel}</span>
                 </p>
               </div>
             </div>
@@ -179,6 +221,59 @@ export default function HiveDetailPage({ params }: { params: Promise<{ hiveId: s
             <p className="text-sm text-orange-600 mt-2">AI Detection: <span className="font-medium">{hive.anomaly_status}</span></p>
           )}
           <p className="text-xs text-gray-400 mt-4">* Live data refreshes every 5 seconds.</p>
+        </div>
+
+        {/* Country & Time Zone Selection Card */}
+        <div className="card bg-gradient-to-r from-amber-50/60 to-orange-50/60 border border-amber-200/80">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center text-amber-700 flex-shrink-0">
+                <Globe className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-gray-900">Country & Time Zone Setting</h4>
+                <p className="text-xs text-gray-500">Telemetry timestamps will automatically adapt to your regional time</p>
+              </div>
+            </div>
+            <div className="sm:w-72">
+              <select
+                value={selectedTimezone}
+                onChange={(e) => handleTimezoneChange(e.target.value)}
+                className="w-full text-xs font-semibold bg-white border border-amber-300 rounded-lg px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-sm cursor-pointer"
+              >
+                {TIMEZONE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Quick preset buttons */}
+          <div className="flex flex-wrap items-center gap-1.5 mt-3 pt-3 border-t border-amber-100">
+            <span className="text-[11px] font-medium text-gray-500 mr-1">Quick Select:</span>
+            {[
+              { label: '🇮🇳 India (IST)', tz: 'Asia/Kolkata' },
+              { label: '🌐 UTC', tz: 'UTC' },
+              { label: '🇺🇸 US Eastern', tz: 'America/New_York' },
+              { label: '🇬🇧 UK (GMT)', tz: 'Europe/London' },
+              { label: '🇦🇪 UAE (GST)', tz: 'Asia/Dubai' },
+              { label: '🇸🇬 Singapore', tz: 'Asia/Singapore' },
+            ].map((p) => (
+              <button
+                key={p.tz}
+                onClick={() => handleTimezoneChange(p.tz)}
+                className={`text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors ${
+                  selectedTimezone === p.tz
+                    ? 'bg-amber-600 text-white font-bold shadow-xs'
+                    : 'bg-white text-gray-700 border border-gray-200 hover:bg-amber-50'
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
         </div>
       </main>
 
