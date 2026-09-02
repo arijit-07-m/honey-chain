@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     # Server
     BACKEND_HOST: str = "0.0.0.0"
     BACKEND_PORT: int = 8000  # Render uses $PORT env var
-    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:8000,https://honey-chain.vercel.app"
+    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:8000,https://honey-chain.vercel.app,https://honey-chain-ten.vercel.app"
 
     # Demo
     DEMO_MODE: bool = True
