@@ -7,7 +7,14 @@ class Base(DeclarativeBase):
     '''Base class for all SQLAlchemy ORM models.'''
 
 
-engine = create_async_engine(settings.DATABASE_URL, echo=False, pool_pre_ping=True)
+engine = create_async_engine(
+    settings.DATABASE_URL,
+    echo=False,
+    pool_size=10,
+    max_overflow=20,
+    pool_pre_ping=True,
+    connect_args={} if 'sqlite' in settings.DATABASE_URL else {'ssl': 'require'}
+)
 AsyncSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
@@ -23,8 +30,7 @@ async def get_db():
 
 
 async def init_db():
-    '''Create all tables. For a prototype we use metadata.create_all;
-    production deployments can migrate to Alembic migrations.'''
-    from app import models  # noqa: F401  (register models with Base.metadata)
+    '''Create all tables.'''
+    from app import models
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
